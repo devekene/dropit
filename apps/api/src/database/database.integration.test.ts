@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
+import { eq } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -13,7 +14,12 @@ import {
   type NewTransferRecord,
   RepositoryInvariantError,
 } from "./repositories/transfer-repository";
-import { databaseSchema, transferFiles } from "./schema";
+import {
+  databaseSchema,
+  transferFiles,
+  transfers as transferTable,
+} from "./schema";
+import { assertTransferInvariants } from "../domain/transfers/transfer-invariants";
 
 const migrationsFolder = resolve(__dirname, "../../drizzle");
 const migrationConfig = {
@@ -149,6 +155,28 @@ describe("database foundation", () => {
     expect(remaining.rows).toEqual([{ count: 0 }]);
   });
 
+  it("normalizes safe filenames before persistence", async () => {
+    const input = makeTransfer();
+    const file = input.files[0];
+    if (file === undefined) throw new Error("Test fixture requires a file");
+    file.originalFilename = "  re\u0301sume\u0301.pdf  ";
+
+    const created = await transfers.createWithFiles(input);
+    expect(created.files[0]?.originalFilename).toBe("résumé.pdf");
+  });
+
+  it("rejects hostile filenames without partial rows", async () => {
+    const input = makeTransfer();
+    const file = input.files[0];
+    if (file === undefined) throw new Error("Test fixture requires a file");
+    file.originalFilename = "../secret.txt";
+
+    await expect(transfers.createWithFiles(input)).rejects.toBeInstanceOf(
+      RepositoryInvariantError,
+    );
+    expect(await transfers.findById(input.id)).toBeNull();
+  });
+
   it.each([
     { name: "empty batch", fileSizes: [] },
     { name: "eleven files", fileSizes: Array.from({ length: 11 }, () => 1) },
@@ -221,6 +249,129 @@ describe("database foundation", () => {
     ).rejects.toThrow();
   });
 
+  it("allows only one compare-and-swap transition to win a state race", async () => {
+    const input = makeTransfer();
+    await transfers.createWithFiles(input);
+    const outcomes = await Promise.all([
+      transfers.transition({
+        id: input.id,
+        from: "CREATED",
+        to: "UPLOADING",
+        expectedVersion: 0,
+      }),
+      transfers.transition({
+        id: input.id,
+        from: "CREATED",
+        to: "FAILED",
+        expectedVersion: 0,
+      }),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome !== null)).toHaveLength(1);
+    const stored = await transfers.findById(input.id);
+    expect(stored?.version).toBe(1);
+    expect(["UPLOADING", "FAILED"]).toContain(stored?.status);
+  });
+
+  it("makes the expiry timestamp authoritative for transitions", async () => {
+    const input = makeTransfer();
+    await transfers.createWithFiles(input);
+    await expect(
+      transfers.transition({
+        id: input.id,
+        from: "CREATED",
+        to: "EXPIRED",
+        expectedVersion: 0,
+      }),
+    ).resolves.toBeNull();
+
+    const pastCreatedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const pastExpiresAt = new Date(Date.now() - 60 * 60 * 1000);
+    await db
+      .update(transferTable)
+      .set({ createdAt: pastCreatedAt, expiresAt: pastExpiresAt })
+      .where(eq(transferTable.id, input.id));
+    await expect(
+      transfers.transition({
+        id: input.id,
+        from: "CREATED",
+        to: "UPLOADING",
+        expectedVersion: 0,
+      }),
+    ).resolves.toBeNull();
+
+    const expired = await transfers.transition({
+      id: input.id,
+      from: "CREATED",
+      to: "EXPIRED",
+      expectedVersion: 0,
+    });
+    expect(expired).toMatchObject({ status: "EXPIRED", version: 1 });
+  });
+
+  it("does not publish READY until every expected file is verified", async () => {
+    const input = makeTransfer({
+      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      fileSizes: [25, 50],
+    });
+    await transfers.createWithFiles(input);
+    const now = new Date();
+    await transfers.transition({
+      id: input.id,
+      from: "CREATED",
+      to: "UPLOADING",
+      expectedVersion: 0,
+    });
+    await transfers.transition({
+      id: input.id,
+      from: "UPLOADING",
+      to: "VERIFYING",
+      expectedVersion: 1,
+    });
+
+    await expect(
+      transfers.transition({
+        id: input.id,
+        from: "VERIFYING",
+        to: "READY",
+        expectedVersion: 2,
+      }),
+    ).resolves.toBeNull();
+
+    await db
+      .update(transferFiles)
+      .set({
+        status: "VERIFIED",
+        verifiedAt: new Date(now.getTime() + 60 * 60 * 1000),
+      })
+      .where(eq(transferFiles.transferId, input.id));
+    await expect(
+      transfers.transition({
+        id: input.id,
+        from: "VERIFYING",
+        to: "READY",
+        expectedVersion: 2,
+      }),
+    ).resolves.toBeNull();
+
+    await db
+      .update(transferFiles)
+      .set({ verifiedAt: now })
+      .where(eq(transferFiles.transferId, input.id));
+    const ready = await transfers.transition({
+      id: input.id,
+      from: "VERIFYING",
+      to: "READY",
+      expectedVersion: 2,
+    });
+
+    if (ready === null) throw new Error("Expected READY transition to succeed");
+    expect(ready.status).toBe("READY");
+    expect(ready.version).toBe(3);
+    expect(ready.completedAt).toBeInstanceOf(Date);
+    expect(() => assertTransferInvariants(ready)).not.toThrow();
+  });
+
   it("stores and uniquely identifies idempotency metadata", async () => {
     const input = makeIdempotencyRecord();
     const created = await idempotency.create(input);
@@ -254,6 +405,7 @@ function digest(): Uint8Array {
 
 function makeTransfer(
   options: {
+    expiresAt?: Date;
     fileSizes?: number[];
     storageKeyPrefix?: string;
   } = {},
@@ -266,7 +418,7 @@ function makeTransfer(
     publicTokenDigest: digest(),
     managementTokenDigest: digest(),
     passwordHash: null,
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    expiresAt: options.expiresAt ?? new Date(Date.now() + 60 * 60 * 1000),
     files: fileSizes.map((sizeBytes, index) => ({
       id: randomUUID(),
       originalFilename: `file-${index}.bin`,

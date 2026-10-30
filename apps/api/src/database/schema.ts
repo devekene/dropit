@@ -13,31 +13,20 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-
-export const MAX_FILES_PER_TRANSFER = 10;
-export const MAX_FILE_SIZE_BYTES = 100_000_000;
-export const MAX_TRANSFER_SIZE_BYTES = 500_000_000;
+import { TRANSFER_FILE_STATUSES } from "../domain/transfers/transfer-repository";
+import { MAX_FILE_SIZE_BYTES } from "../domain/transfers/transfer-policy";
+import { TRANSFER_STATUSES } from "../domain/transfers/transfer-state";
 
 const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
   dataType: () => "bytea",
 });
 
-export const transferStatus = pgEnum("transfer_status", [
-  "CREATED",
-  "UPLOADING",
-  "VERIFYING",
-  "READY",
-  "EXPIRED",
-  "CANCELLED",
-  "FAILED",
-]);
+export const transferStatus = pgEnum("transfer_status", TRANSFER_STATUSES);
 
-export const transferFileStatus = pgEnum("transfer_file_status", [
-  "PENDING",
-  "UPLOADED",
-  "VERIFIED",
-  "FAILED",
-]);
+export const transferFileStatus = pgEnum(
+  "transfer_file_status",
+  TRANSFER_FILE_STATUSES,
+);
 
 export const transfers = pgTable(
   "transfers",

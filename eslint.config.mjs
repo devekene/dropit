@@ -32,6 +32,7 @@ export default [
         projectService: {
           allowDefaultProject: [
             "vitest.config.mts",
+            "vitest.r2.config.mts",
             "apps/api/drizzle.config.ts",
             "apps/api/drizzle.migrate.config.ts",
           ],

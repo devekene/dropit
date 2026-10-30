@@ -10,11 +10,14 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run --root ../.. --project api",
+    "test:r2": "node --env-file=.env.local ../../node_modules/vitest/vitest.mjs run --config ../../vitest.r2.config.mts",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:check": "drizzle-kit check --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.migrate.config.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1160.0",
+    "@aws-sdk/s3-request-presigner": "3.1160.0",
     "@nestjs/common": "12.3.2",
     "@nestjs/core": "12.3.2",
     "@nestjs/platform-fastify": "12.3.2",

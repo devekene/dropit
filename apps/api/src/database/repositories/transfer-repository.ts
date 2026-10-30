@@ -1,43 +1,44 @@
-import { eq } from "drizzle-orm";
+import {
+  and,
+  eq,
+  exists,
+  gt,
+  isNull,
+  lte,
+  ne,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
+import type {
+  NewTransferRecord,
+  TransferRepository,
+  TransferWithFiles,
+  TransitionTransferInput,
+} from "../../domain/transfers/transfer-repository";
+import { TransferDomainError } from "../../domain/transfers/errors";
+import { normalizeFilename } from "../../domain/transfers/filename";
 import {
-  databaseSchema,
   MAX_FILES_PER_TRANSFER,
-  MAX_FILE_SIZE_BYTES,
-  MAX_TRANSFER_SIZE_BYTES,
-  transferFiles,
-  transfers,
-} from "../schema";
+  validateTransferFiles,
+} from "../../domain/transfers/transfer-policy";
+import { assertStatusTransition } from "../../domain/transfers/transfer-state";
+import { databaseSchema, transferFiles, transfers } from "../schema";
 
-export interface NewTransferFileRecord {
-  id: string;
-  originalFilename: string;
-  storageKey: string;
-  contentTypeClaimed: string;
-  sizeBytes: number;
-}
-
-export interface NewTransferRecord {
-  id: string;
-  publicTokenDigest: Uint8Array;
-  managementTokenDigest: Uint8Array;
-  passwordHash: string | null;
-  expiresAt: Date;
-  files: readonly NewTransferFileRecord[];
-}
+export type {
+  NewTransferFileRecord,
+  NewTransferRecord,
+  TransferFileRecord,
+  TransferRecord,
+  TransferRepository,
+  TransferWithFiles,
+  TransitionTransferInput,
+} from "../../domain/transfers/transfer-repository";
 
 export type TransferRow = typeof transfers.$inferSelect;
 export type TransferFileRow = typeof transferFiles.$inferSelect;
-export type TransferWithFiles = TransferRow & {
-  files: TransferFileRow[];
-};
-
-export interface TransferRepository {
-  createWithFiles(input: NewTransferRecord): Promise<TransferWithFiles>;
-  findById(id: string): Promise<TransferWithFiles | null>;
-  deleteById(id: string): Promise<boolean>;
-}
 
 export class RepositoryInvariantError extends Error {
   constructor(message: string) {
@@ -69,7 +70,7 @@ export class DrizzleTransferRepository<
         input.files.map((file) => ({
           id: file.id,
           transferId: input.id,
-          originalFilename: file.originalFilename,
+          originalFilename: normalizeFilename(file.originalFilename),
           storageKey: file.storageKey,
           contentTypeClaimed: file.contentTypeClaimed,
           sizeBytes: file.sizeBytes,
@@ -86,6 +87,72 @@ export class DrizzleTransferRepository<
 
   findById(id: string): Promise<TransferWithFiles | null> {
     return this.findByIdUsing(this.db, id);
+  }
+
+  async transition(
+    input: TransitionTransferInput,
+  ): Promise<TransferWithFiles | null> {
+    assertStatusTransition(input.from, input.to);
+    if (
+      !Number.isSafeInteger(input.expectedVersion) ||
+      input.expectedVersion < 0
+    ) {
+      throw new RepositoryInvariantError(
+        "Expected version must be a nonnegative safe integer",
+      );
+    }
+    const expiryGuard =
+      input.to === "EXPIRED"
+        ? lte(transfers.expiresAt, sql`CURRENT_TIMESTAMP`)
+        : gt(transfers.expiresAt, sql`CURRENT_TIMESTAMP`);
+    const readinessGuard =
+      input.to === "READY"
+        ? and(
+            exists(
+              this.db
+                .select({ id: transferFiles.id })
+                .from(transferFiles)
+                .where(eq(transferFiles.transferId, transfers.id)),
+            ),
+            notExists(
+              this.db
+                .select({ id: transferFiles.id })
+                .from(transferFiles)
+                .where(
+                  and(
+                    eq(transferFiles.transferId, transfers.id),
+                    or(
+                      ne(transferFiles.status, "VERIFIED"),
+                      isNull(transferFiles.verifiedAt),
+                      gt(transferFiles.verifiedAt, sql`CURRENT_TIMESTAMP`),
+                    ),
+                  ),
+                ),
+            ),
+          )
+        : sql`true`;
+    const updated = await this.db
+      .update(transfers)
+      .set({
+        status: input.to,
+        version: sql`${transfers.version} + 1`,
+        ...(input.to === "READY"
+          ? { completedAt: sql`CURRENT_TIMESTAMP` }
+          : {}),
+      })
+      .where(
+        and(
+          eq(transfers.id, input.id),
+          eq(transfers.status, input.from),
+          eq(transfers.version, input.expectedVersion),
+          expiryGuard,
+          readinessGuard,
+        ),
+      )
+      .returning({ id: transfers.id });
+
+    if (updated.length === 0) return null;
+    return this.findById(input.id);
   }
 
   async deleteById(id: string): Promise<boolean> {
@@ -127,29 +194,12 @@ function validateNewTransfer(input: NewTransferRecord): void {
       "Management token digest must be 32 bytes",
     );
   }
-  if (input.files.length < 1 || input.files.length > MAX_FILES_PER_TRANSFER) {
-    throw new RepositoryInvariantError(
-      `A transfer must contain 1–${MAX_FILES_PER_TRANSFER} files`,
-    );
-  }
-
-  let totalBytes = 0;
-  for (const file of input.files) {
-    if (
-      !Number.isSafeInteger(file.sizeBytes) ||
-      file.sizeBytes < 1 ||
-      file.sizeBytes > MAX_FILE_SIZE_BYTES
-    ) {
-      throw new RepositoryInvariantError(
-        `Each file must contain 1–${MAX_FILE_SIZE_BYTES} bytes`,
-      );
+  try {
+    validateTransferFiles(input.files);
+  } catch (error: unknown) {
+    if (error instanceof TransferDomainError) {
+      throw new RepositoryInvariantError(error.message);
     }
-    totalBytes += file.sizeBytes;
-  }
-
-  if (totalBytes > MAX_TRANSFER_SIZE_BYTES) {
-    throw new RepositoryInvariantError(
-      `Transfer size must not exceed ${MAX_TRANSFER_SIZE_BYTES} bytes`,
-    );
+    throw error;
   }
 }

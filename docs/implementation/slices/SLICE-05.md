@@ -1,6 +1,6 @@
 # Slice 05 — R2 storage adapter
 
-**Status:** NOT STARTED  
+**Status:** VERIFIED
 **Prerequisite:** Slice 04 verified; R2 credentials available for local integration.
 
 ## Objective
@@ -22,13 +22,13 @@ R2 integration using disposable objects, CORS preflight, bad MIME/size and expir
 No proxying file bytes through API; no public bucket.
 
 ## Execution checklist
-- [ ] Read governance and verify prerequisites.
-- [ ] Inspect existing code and document plan.
-- [ ] Implement only the stated objective.
-- [ ] Add negative-path tests, not only happy-path tests.
-- [ ] Run and report all applicable checks.
-- [ ] Update `PROGRESS.md` with evidence only when verified.
-- [ ] Stop and request approval before the next slice.
+- [x] Read governance and verify prerequisites.
+- [x] Inspect existing code and document plan.
+- [x] Implement only the stated objective.
+- [x] Add negative-path tests, not only happy-path tests.
+- [x] Run and report all applicable checks.
+- [x] Update `PROGRESS.md` with evidence only when verified.
+- [x] Stop and request approval before the next slice.
 
 ## Universal requirements
 - Read root `AGENTS.md`, accepted ADRs, design/security/performance specifications and `AGENT_PROTOCOL.md` before changes.

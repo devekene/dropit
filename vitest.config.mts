@@ -11,6 +11,7 @@ export default defineConfig({
           name: "api",
           root,
           environment: "node",
+          exclude: ["apps/api/src/**/*.live.test.ts"],
           include: ["apps/api/src/**/*.test.ts"],
         },
       },
