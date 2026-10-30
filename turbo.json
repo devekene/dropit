@@ -20,5 +20,5 @@
       "outputs": []
     }
   },
-  "globalEnv": ["NODE_ENV", "API_PORT"]
+  "globalEnv": ["NODE_ENV", "API_PORT", "DATABASE_URL"]
 }

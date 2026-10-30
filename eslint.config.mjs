@@ -29,7 +29,14 @@ export default [
     files: tsFiles,
     languageOptions: {
       parserOptions: {
-        projectService: { allowDefaultProject: ["vitest.config.mts"] },
+        projectService: {
+          allowDefaultProject: [
+            "vitest.config.mts",
+            "apps/api/drizzle.config.ts",
+            "apps/api/drizzle.migrate.config.ts",
+          ],
+          defaultProject: "tsconfig.eslint.json",
+        },
         tsconfigRootDir: fileURLToPath(new URL(".", import.meta.url)),
       },
     },

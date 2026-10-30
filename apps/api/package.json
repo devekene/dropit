@@ -9,19 +9,26 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run --root ../.. --project api"
+    "test": "vitest run --root ../.. --project api",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:check": "drizzle-kit check --config drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config drizzle.migrate.config.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.3.2",
     "@nestjs/core": "12.3.2",
     "@nestjs/platform-fastify": "12.3.2",
+    "drizzle-orm": "0.45.4",
+    "postgres": "4.0.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   },
   "devDependencies": {
     "@dropit/typescript-config": "workspace:*",
+    "@electric-sql/pglite": "0.5.13",
     "@nestjs/cli": "12.0.11",
     "@types/node": "24.19.2",
+    "drizzle-kit": "0.31.11",
     "typescript": "6.0.3"
   }
 }
