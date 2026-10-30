@@ -22,3 +22,6 @@ dist/
 .env*
 !.env.example
 .DS_Store
+
+# Test artifacts
+coverage/

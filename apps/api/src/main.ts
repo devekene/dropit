@@ -5,8 +5,10 @@ import {
   type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module";
+import { readApiEnvironment } from "./config/environment";
 
 async function bootstrap(): Promise<void> {
+  const environment = readApiEnvironment(process.env);
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
@@ -22,8 +24,8 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix("v1");
   app.enableShutdownHooks();
-  await app.listen(3001, "127.0.0.1");
-  console.info("DropIt API listening on http://127.0.0.1:3001");
+  await app.listen(environment.port, "127.0.0.1");
+  console.info(`DropIt API listening on http://127.0.0.1:${environment.port}`);
 }
 
 bootstrap().catch(() => {

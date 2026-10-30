@@ -1,0 +1,28 @@
+name: Quality
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: npm install --global pnpm@10.33.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:governance
+      - run: pnpm check:ui
+      - run: pnpm check
+      - run: pnpm check:enforcement
+      - run: pnpm audit --audit-level=high

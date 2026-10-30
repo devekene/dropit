@@ -1,36 +1,24 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalDependencies": [
-    "tsconfig.json",
-    "packages/typescript-config/*.json"
-  ],
+  "globalDependencies": ["tsconfig.json", "packages/typescript-config/*.json"],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**",
-        ".next/**",
-        "!.next/cache/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "start": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "cache": false,
       "persistent": true
     },
     "typecheck": {
-      "dependsOn": [
-        "^typecheck"
-      ],
+      "dependsOn": ["^typecheck"],
       "outputs": []
     }
-  }
+  },
+  "globalEnv": ["NODE_ENV", "API_PORT"]
 }

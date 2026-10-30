@@ -3,6 +3,6 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
-  - '@nestjs/core'
-  - '@tailwindcss/oxide'
+  - "@nestjs/core"
+  - "@tailwindcss/oxide"
   - sharp

@@ -1,6 +1,6 @@
 # Slice 02 — Developer tooling
 
-**Status:** NOT STARTED  
+**Status:** VERIFIED — see [completion report](../reports/SLICE-02.md)
 **Prerequisite:** Slice 01 verified.
 
 ## Objective
@@ -22,13 +22,13 @@ Run checks on clean install; introduce one failing type/lint/test fixture tempor
 No business domain or storage code.
 
 ## Execution checklist
-- [ ] Read governance and verify prerequisites.
-- [ ] Inspect existing code and document plan.
-- [ ] Implement only the stated objective.
-- [ ] Add negative-path tests, not only happy-path tests.
-- [ ] Run and report all applicable checks.
-- [ ] Update `PROGRESS.md` with evidence only when verified.
-- [ ] Stop and request approval before the next slice.
+- [x] Read governance and verify prerequisites.
+- [x] Inspect existing code and document plan.
+- [x] Implement only the stated objective.
+- [x] Add negative-path tests, not only happy-path tests.
+- [x] Run and report all applicable checks.
+- [x] Update `PROGRESS.md` with evidence only when verified.
+- [x] Stop and request approval before the next slice.
 
 ## Universal requirements
 - Read root `AGENTS.md`, accepted ADRs, design/security/performance specifications and `AGENT_PROTOCOL.md` before changes.

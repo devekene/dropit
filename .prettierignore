@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+pnpm-lock.yaml
+**/next-env.d.ts
+# Preserve existing engineering documents and contracts.
+docs/
+contracts/
+AGENTS.md
+README.md
+scripts/check-ui-lines.mjs
+scripts/check_governance.py
+.idea/

@@ -2,8 +2,8 @@
 
 | Slice | Status | Evidence / commit | Notes |
 |---|---|---|---|
-| 01 | NOT STARTED | — | — |
-| 02 | NOT STARTED | — | — |
+| 01 | VERIFIED | `3fe0993`; [Slice 01 report](reports/SLICE-01.md) | Independent startup and negative-path smoke checks passed. |
+| 02 | VERIFIED | [Slice 02 report](reports/SLICE-02.md); ADR-0006 | Clean-install quality checks and failure probes passed; hosted CI not yet run. |
 | 03 | NOT STARTED | — | — |
 | 04 | NOT STARTED | — | — |
 | 05 | NOT STARTED | — | — |
