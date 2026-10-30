@@ -1,0 +1,10 @@
+flowchart TD
+ A[Read governance and slice] --> B[Inspect repo and prerequisites]
+ B --> C[Plan and dependency review]
+ C --> D[Implement only current slice]
+ D --> E[Test lint typecheck build]
+ E --> F{All required gates pass?}
+ F -->|No| G[Fix or report blocked]
+ G --> E
+ F -->|Yes| H[Report and update progress]
+ H --> I[Stop for approval]

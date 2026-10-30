@@ -1,0 +1,28 @@
+{
+  "name": "dropit",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "pnpm": ">=10.33.0 <11"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @dropit/web dev",
+    "dev:api": "pnpm --filter @dropit/api dev",
+    "build": "turbo run build",
+    "build:web": "turbo run build --filter=@dropit/web",
+    "build:api": "turbo run build --filter=@dropit/api",
+    "start": "turbo run start",
+    "start:web": "pnpm --filter @dropit/web start",
+    "start:api": "pnpm --filter @dropit/api start",
+    "typecheck": "turbo run typecheck",
+    "check:governance": "python3 scripts/check_governance.py",
+    "check:ui": "node scripts/check-ui-lines.mjs"
+  },
+  "devDependencies": {
+    "turbo": "2.11.10",
+    "typescript": "6.0.3"
+  }
+}

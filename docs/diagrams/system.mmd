@@ -1,0 +1,7 @@
+flowchart LR
+  B[Browser / Next.js] -->|REST JSON HTTPS| A[NestJS / Fastify API]
+  A -->|Metadata / transactions| DB[(PostgreSQL)]
+  A -->|Sign / HEAD / delete| S[(Private S3 Storage)]
+  B -->|Presigned PUT / GET file bytes| S
+  C[Scheduled cleanup] --> DB
+  C --> S

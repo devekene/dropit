@@ -1,0 +1,11 @@
+flowchart TD
+  W[apps/web] --> UI[packages/ui]
+  W --> C[packages/contracts]
+  UI --> C
+  API[apps/api] --> C
+  API --> D[domain services]
+  D --> P[repository and storage ports]
+  DB[Postgres adapter] --> P
+  S3[S3 adapter] --> P
+  API --> DB
+  API --> S3

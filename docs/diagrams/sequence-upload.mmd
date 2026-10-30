@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant B as Browser
+  participant A as API
+  participant D as PostgreSQL
+  participant S as Private S3
+  B->>A: POST /v1/transfers (descriptors + idempotency key)
+  A->>D: Validate quota + insert CREATED and files
+  D-->>A: Committed
+  A-->>B: Management secret + signed upload URLs
+  par Max 3 concurrent uploads
+    B->>S: Signed PUT object 1
+    B->>S: Signed PUT object N
+  end
+  B->>A: POST /v1/transfers/id/complete
+  A->>D: Claim VERIFYING (CAS)
+  loop Expected files (bounded fanout)
+    A->>S: HEAD object / verify size
+  end
+  A->>D: Commit READY if valid and unexpired
+  A-->>B: Public share link

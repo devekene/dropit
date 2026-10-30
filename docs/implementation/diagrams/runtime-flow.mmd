@@ -1,0 +1,6 @@
+flowchart LR
+ Browser -->|REST JSON metadata/auth| API[NestJS Fastify]
+ API --> DB[(PostgreSQL)]
+ API -->|S3 API: sign / HEAD / delete| R2[(Private Cloudflare R2)]
+ Browser -->|Signed PUT file bytes| R2
+ Browser -->|Signed GET file bytes| R2

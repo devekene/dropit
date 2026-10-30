@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant R as Recipient Browser
+  participant A as API
+  participant D as PostgreSQL
+  participant S as Private S3
+  R->>A: GET /v1/public/transfers/token
+  A->>D: Check READY + not expired
+  alt Password protected
+    A-->>R: Password challenge (no file metadata)
+    R->>A: POST unlock password
+    A-->>R: Short-lived scoped grant
+  else Unprotected
+    A-->>R: Safe file metadata
+  end
+  R->>A: POST download-urls (selected IDs)
+  A->>D: Recheck READY, expiry, grant
+  A-->>R: Short-lived signed GET URLs
+  R->>S: Direct signed GET file bytes

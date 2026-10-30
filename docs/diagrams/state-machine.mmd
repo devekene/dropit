@@ -1,0 +1,17 @@
+stateDiagram-v2
+  [*] --> CREATED
+  CREATED --> UPLOADING
+  UPLOADING --> VERIFYING
+  VERIFYING --> READY: all objects verified
+  VERIFYING --> FAILED: validation failed
+  CREATED --> CANCELLED
+  UPLOADING --> CANCELLED
+  VERIFYING --> CANCELLED
+  READY --> CANCELLED: management authorization
+  READY --> EXPIRED: time threshold
+  CREATED --> EXPIRED: time threshold
+  UPLOADING --> EXPIRED: time threshold
+  VERIFYING --> EXPIRED: time threshold
+  FAILED --> [*]
+  CANCELLED --> [*]
+  EXPIRED --> [*]

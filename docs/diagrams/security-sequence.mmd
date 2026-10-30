@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant B as Browser
+    participant A as NestJS API
+    participant D as PostgreSQL
+    participant R as Private R2
+    B->>A: POST /v1/transfers (validated metadata)
+    A->>D: Atomically check quota + reserve bytes + create transfer
+    A-->>B: One-time management secret + signed PUT URLs
+    B->>R: PUT objects directly (max 3 concurrent)
+    B->>A: Complete (management bearer)
+    A->>D: CAS state to VERIFYING
+    A->>R: HEAD expected keys + sizes/checksums
+    A->>D: CAS READY if valid, unexpired, not cancelled
+    B->>A: Recipient opens share token
+    A-->>B: Locked response if password-protected
+    B->>A: Verify password (rate-limited)
+    A->>D: Validate Argon2id; create short grant
+    A-->>B: HttpOnly Secure SameSite cookie
+    B->>A: Request file download (share token + grant)
+    A->>D: Verify READY + expiry + grant
+    A-->>B: Signed GET URL (<=60s)
+    B->>R: GET file directly

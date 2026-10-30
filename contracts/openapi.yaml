@@ -1,0 +1,219 @@
+openapi: 3.0.3
+info:
+  title: DropIt API
+  version: 0.1.0
+  description: Initial design contract; not yet backed by implementation.
+servers:
+  - url: https://api.example.invalid/v1
+paths:
+  /transfers:
+    post:
+      operationId: createTransfer
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: {type: string, minLength: 16, maxLength: 128}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateTransfer'}
+      responses:
+        '201':
+          description: Created with one-time management credential and upload capabilities
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CreatedTransfer'}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+  /transfers/{id}/complete:
+    post:
+      operationId: completeTransfer
+      security: [{managementBearer: []}]
+      parameters:
+        - $ref: '#/components/parameters/TransferId'
+      responses:
+        '200':
+          description: Ready or verification in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string, enum: [VERIFYING, READY]}
+                  shareUrl: {type: string, format: uri}
+        '401': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /transfers/{id}:
+    delete:
+      operationId: cancelTransfer
+      security: [{managementBearer: []}]
+      parameters:
+        - $ref: '#/components/parameters/TransferId'
+      responses:
+        '204': {description: Cancelled}
+        '401': {$ref: '#/components/responses/Error'}
+  /public/transfers/{token}:
+    get:
+      operationId: getPublicTransfer
+      parameters:
+        - $ref: '#/components/parameters/PublicToken'
+      responses:
+        '200':
+          description: Metadata or password challenge
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicTransfer'}
+        '404': {$ref: '#/components/responses/Error'}
+  /public/transfers/{token}/unlock:
+    post:
+      operationId: unlockTransfer
+      parameters:
+        - $ref: '#/components/parameters/PublicToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: {type: string, minLength: 1, maxLength: 256}
+      responses:
+        '200':
+          description: Scoped short-lived grant (implementation chooses cookie or bearer)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: {type: string, description: Omit when secure cookie is used}
+                  expiresAt: {type: string, format: date-time}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+  /public/transfers/{token}/download-urls:
+    post:
+      operationId: getDownloadUrls
+      parameters:
+        - $ref: '#/components/parameters/PublicToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileIds]
+              properties:
+                fileIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  uniqueItems: true
+                  items: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Signed URLs valid for at most 60 seconds
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files]
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      required: [fileId, url]
+                      properties:
+                        fileId: {type: string, format: uuid}
+                        url: {type: string, format: uri}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+components:
+  parameters:
+    TransferId:
+      in: path
+      name: id
+      required: true
+      schema: {type: string, format: uuid}
+    PublicToken:
+      in: path
+      name: token
+      required: true
+      schema: {type: string, minLength: 32, maxLength: 128}
+  securitySchemes:
+    managementBearer: {type: http, scheme: bearer}
+  responses:
+    Error:
+      description: Standard API error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [code, message, requestId]
+                properties:
+                  code: {type: string}
+                  message: {type: string}
+                  requestId: {type: string}
+  schemas:
+    FileDescriptor:
+      type: object
+      additionalProperties: false
+      required: [name, size, contentType]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 255}
+        size: {type: integer, minimum: 1, maximum: 104857600}
+        contentType: {type: string, maxLength: 255}
+    CreateTransfer:
+      type: object
+      additionalProperties: false
+      required: [files, expiresInHours]
+      properties:
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: {$ref: '#/components/schemas/FileDescriptor'}
+          description: Sum of size values MUST be <=524288000 bytes.
+        expiresInHours: {type: integer, minimum: 1, maximum: 168, default: 24}
+        password: {type: string, nullable: true, minLength: 1, maxLength: 256}
+    CreatedTransfer:
+      type: object
+      required: [transferId, managementToken, expiresAt, files]
+      properties:
+        transferId: {type: string, format: uuid}
+        managementToken: {type: string, description: Returned once; store only in sender session}
+        expiresAt: {type: string, format: date-time}
+        files:
+          type: array
+          items:
+            type: object
+            required: [id, uploadUrl]
+            properties:
+              id: {type: string, format: uuid}
+              uploadUrl: {type: string, format: uri}
+              uploadMethod: {type: string, enum: [PUT, POST]}
+              uploadFields: {type: object, additionalProperties: {type: string}}
+    PublicTransfer:
+      type: object
+      required: [passwordRequired]
+      properties:
+        passwordRequired: {type: boolean}
+        expiresAt: {type: string, format: date-time}
+        files:
+          type: array
+          description: Omitted until password grant is verified when protected.
+          items:
+            type: object
+            required: [id, name, size]
+            properties:
+              id: {type: string, format: uuid}
+              name: {type: string}
+              size: {type: integer, format: int64}
