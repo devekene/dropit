@@ -91,6 +91,22 @@ for (const app of [
       );
       assert.equal(missing.status, 404);
       await missing.text();
+      if (app.name === "API") {
+        const disabled = await fetch(
+          `http://127.0.0.1:${app.port}/v1/transfers`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ files: [] }),
+            signal: AbortSignal.timeout(5000),
+          },
+        );
+        assert.equal(disabled.status, 404);
+        assert.equal(disabled.headers.get("cache-control"), "no-store");
+        const result = await disabled.json();
+        assert.equal(result.error.code, "NOT_FOUND");
+        assert.equal(typeof result.error.requestId, "string");
+      }
       const duplicate = launch(app.args, app.cwd, {
         API_PORT: String(app.port),
       });

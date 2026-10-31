@@ -1,7 +1,7 @@
 # DropIt — implementation roadmap
 
 ## Fixed MVP
-Anonymous multi-file transfers; 10 files maximum, 100 MiB/file, 500 MiB/transfer (confirm whether published MB limits mean decimal MB or MiB before coding); default expiry 24 hours, maximum 7 days; unlimited downloads until expiry; optional transfer password; share link + QR; individual download and download-all ZIP. Next.js, Tailwind, NestJS/Fastify, PostgreSQL/Drizzle, Cloudflare R2, REST/JSON.
+Anonymous multi-file transfers; 10 files maximum, 100,000,000 bytes/file, 500,000,000 bytes/transfer (decimal limits accepted in ADR-0004); default expiry 24 hours, maximum 7 days; unlimited downloads until expiry; optional transfer password; share link + QR; individual download and download-all ZIP. Next.js, Tailwind, NestJS/Fastify, PostgreSQL/Drizzle, Cloudflare R2, REST/JSON.
 
 ## Slice dependency graph
 

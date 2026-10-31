@@ -116,6 +116,7 @@ export class R2StorageAdapter implements ObjectStorage {
           Bucket: this.bucket,
           Key: input.storageKey,
         }),
+        { abortSignal: input.signal },
       );
       if (response.ContentLength === undefined) {
         return { ok: false, reason: "METADATA_MISSING" };
@@ -149,6 +150,7 @@ export class R2StorageAdapter implements ObjectStorage {
           Bucket: this.bucket,
           Key: reference.storageKey,
         }),
+        { abortSignal: reference.signal },
       );
     } catch {
       throw new ObjectStorageUnavailableError();
@@ -171,6 +173,7 @@ export function createR2StorageAdapter(
       secretAccessKey: environment.secretAccessKey,
     },
     maxAttempts: 2,
+    requestHandler: { connectionTimeout: 2_000, requestTimeout: 5_000 },
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
   });

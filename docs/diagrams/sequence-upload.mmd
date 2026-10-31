@@ -4,17 +4,18 @@ sequenceDiagram
   participant D as PostgreSQL
   participant S as Private S3
   B->>A: POST /v1/transfers (descriptors + idempotency key)
-  A->>D: Validate quota + insert CREATED and files
+  Note over A: Slice 06 routes are test-only until Slice 07 security activation
+  A->>D: Validate admission + atomic idempotency claim and transfer/files
   D-->>A: Committed
-  A-->>B: Management secret + signed upload URLs
+  A-->>B: One-time management secret + inactive share URL + signed PUTs
   par Max 3 concurrent uploads
     B->>S: Signed PUT object 1
     B->>S: Signed PUT object N
   end
   B->>A: POST /v1/transfers/id/complete
-  A->>D: Claim VERIFYING (CAS)
+  A->>D: Claim VERIFYING (version CAS + 60-second lease)
   loop Expected files (bounded fanout)
     A->>S: HEAD object / verify size
   end
-  A->>D: Commit READY if valid and unexpired
-  A-->>B: Public share link
+  A->>D: Atomically record VERIFIED and READY if lease/version/expiry valid
+  A-->>B: READY status (existing share URL becomes usable)

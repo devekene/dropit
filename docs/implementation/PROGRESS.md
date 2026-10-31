@@ -7,7 +7,7 @@
 | 03 | VERIFIED | [Slice 03 report](reports/SLICE-03.md); ADR-0007 | Migration/rebuild and repository integration checks passed on disposable PGlite; live server parity remains pre-deployment work. |
 | 04 | VERIFIED | [Slice 04 report](reports/SLICE-04.md); ADR-0008 | Pure domain boundary and database-clock CAS transition/race checks passed; live PostgreSQL concurrency parity remains pre-deployment work. |
 | 05 | VERIFIED | [Slice 05 report](reports/SLICE-05.md); ADR-0009 | Live private R2 PUT/GET/HEAD/delete, exact-origin CORS, negative paths and cleanup passed with disposable objects. |
-| 06 | NOT STARTED | — | — |
+| 06 | VERIFIED | [Slice 06 report](reports/SLICE-06.md); ADR-0010 | Approved test-only API: 249 normal tests, 2 live R2 suites, both builds and startup gates passed. Production routes remain disabled pending Slice 07. |
 | 07 | NOT STARTED | — | — |
 | 08 | NOT STARTED | — | — |
 | 09 | NOT STARTED | — | — |

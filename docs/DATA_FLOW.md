@@ -3,11 +3,11 @@
 ## Upload
 1. Browser validates count/size/expiry locally for UX only.
 2. `POST /v1/transfers` with file descriptors, password, expiry and idempotency key.
-3. API validates and applies quotas; inserts CREATED transfer and expected files transactionally; returns separate management secret and per-file short-lived upload capabilities.
+3. API validates and applies quotas; claims idempotency and inserts CREATED transfer and expected files transactionally, then transitions UPLOADING; returns separate management secret, inactive share URL and per-file short-lived upload capabilities. Slice 06 implements the flow only in tests; quota enforcement gates activation in Slice 07.
 4. Browser performs direct PUT/POST to private storage with at most 3 concurrent uploads; shows local progress; abort/retry bounded.
 5. Browser calls `POST /v1/transfers/{id}/complete` with management credential.
-6. API atomically claims VERIFYING; HEADs each expected object (bounded fanout), checks size/key and available checksums; transitions READY only if valid and unexpired; else FAILED or retryable VERIFYING.
-7. API returns public share URL only when READY (public token may be created earlier but not useful until READY).
+6. API atomically claims VERIFYING with a 60-second recoverable lease; HEADs each expected object (fanout <=3), checks size/key and available checksums; atomically records VERIFIED files and READY only if lease/version still match and the transfer is valid and unexpired; else FAILED or retryable VERIFYING.
+7. API returns completion status only. The sender already holds the share URL from creation; metadata remains inaccessible until READY. This reconciles hash-only token storage under ADR-0010.
 
 ## Download
 1. Recipient opens `/t/{publicToken}`; no-store, no-referrer page.

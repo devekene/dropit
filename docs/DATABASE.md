@@ -1,7 +1,7 @@
 # PostgreSQL data model and invariants
 
 ## Tables
-`transfers(id uuid pk, public_token_digest bytea unique, management_token_digest bytea unique, status enum, password_hash text null, expires_at timestamptz, created_at timestamptz, completed_at timestamptz null, version int, cleanup_claim_until timestamptz null)`
+`transfers(id uuid pk, public_token_digest bytea unique, management_token_digest bytea unique, status enum, password_hash text null, expires_at timestamptz, created_at timestamptz, completed_at timestamptz null, version int, cleanup_claim_until timestamptz null, verification_claim_until timestamptz null)`
 
 `transfer_files(id uuid pk, transfer_id uuid fk on delete cascade, original_filename text, storage_key text unique, content_type_claimed text, size_bytes bigint check >0 and <=100000000, status enum, created_at timestamptz, verified_at timestamptz null, checksum text null)`
 
@@ -18,6 +18,19 @@ Optional `abuse_counters` using bounded per-IP hashed identifier, window and cou
 - CAS state update: `UPDATE ... WHERE status IN (...) AND expires_at > now() AND version = ? RETURNING ...`.
 - Cleanup: `FOR UPDATE SKIP LOCKED`, bounded batches, lease and retries; avoid long transactions during S3 delete.
 - UTC timestamps, DB clock as authority. Never assume cron timing is authorization.
+
+Slice 06 creation persists the idempotency claim and transfer/files in one
+transaction, guarded by the existing unique operation/scope/key tuple. Duplicate
+keys return no new transfer even under concurrent calls. Network signing happens
+after commit; failures leave a FAILED transfer and the retained key.
+
+Verification claims use a primary-key CAS and a 60-second lease. Reclaiming an
+expired lease increments version, so stale workers cannot publish or release a
+new worker's claim. HEAD calls occur outside transactions. A short transaction
+locks the transfer, checks the exact file set, records VERIFIED files and writes
+READY under `clock_timestamp()` expiry/lease guards. Cancellation uses the same
+transfer row/version ordering. Migration 0001 adds a nullable column without an
+index or destructive data change; forward-fix rollback leaves it in place.
 
 ## Migration rules
 Every schema change must include migration, rollback/forward-fix plan, index impact and test against realistic row counts.

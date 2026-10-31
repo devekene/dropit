@@ -1,6 +1,6 @@
 # Slice 06 — Transfer API
 
-**Status:** NOT STARTED  
+**Status:** VERIFIED within the approved test-only scope (2026-10-31); see [completion report](../reports/SLICE-06.md) and [ADR-0010](../../adr/0010-transfer-api.md).
 **Prerequisite:** Slices 03–05 verified.
 
 ## Objective
@@ -22,13 +22,13 @@ Contract tests and integration against DB/storage adapter; verify sanitized erro
 No password bypass or unprotected public download endpoints.
 
 ## Execution checklist
-- [ ] Read governance and verify prerequisites.
-- [ ] Inspect existing code and document plan.
-- [ ] Implement only the stated objective.
-- [ ] Add negative-path tests, not only happy-path tests.
-- [ ] Run and report all applicable checks.
-- [ ] Update `PROGRESS.md` with evidence only when verified.
-- [ ] Stop and request approval before the next slice.
+- [x] Read governance and verify prerequisites.
+- [x] Inspect existing code and document plan.
+- [x] Implement only the stated objective and explicitly approved reconciliation.
+- [x] Add negative-path tests, not only happy-path tests.
+- [x] Run and report all applicable checks.
+- [x] Update `PROGRESS.md` with evidence only when verified.
+- [x] Stop at Slice 06; Slice 07 requires separate approval.
 
 ## Universal requirements
 - Read root `AGENTS.md`, accepted ADRs, design/security/performance specifications and `AGENT_PROTOCOL.md` before changes.

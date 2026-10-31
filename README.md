@@ -5,7 +5,7 @@ Drop this folder's contents into the repository root. This is an **architecture 
 ## Decisions locked
 - Next.js / Tailwind; NestJS with Fastify; PostgreSQL + Drizzle; S3-compatible private object storage; pnpm monorepo.
 - REST/JSON over HTTPS; OpenAPI contract; no GraphQL/WebSockets/Redis/queues for MVP.
-- Anonymous; max 10 files, 100 MiB per file, 500 MiB per transfer; 24h default, 7d maximum; unlimited downloads until expiry.
+- Anonymous; max 10 files, 100,000,000 bytes per file, 500,000,000 bytes per transfer (decimal MB); 24h default, 7d maximum; unlimited downloads until expiry.
 - Files move browser ↔ object storage, not through NestJS; ZIP must not route through API.
 
 ## Read order

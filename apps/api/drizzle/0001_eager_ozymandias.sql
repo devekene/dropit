@@ -1,0 +1,1 @@
+ALTER TABLE "transfers" ADD COLUMN "verification_claim_until" timestamp with time zone;

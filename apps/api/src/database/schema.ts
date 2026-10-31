@@ -52,6 +52,10 @@ export const transfers = pgTable(
       withTimezone: true,
       mode: "date",
     }),
+    verificationClaimUntil: timestamp("verification_claim_until", {
+      withTimezone: true,
+      mode: "date",
+    }),
   },
   (table) => [
     uniqueIndex("transfers_public_token_digest_uidx").on(

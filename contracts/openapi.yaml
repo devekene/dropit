@@ -1,19 +1,20 @@
 openapi: 3.0.3
 info:
   title: DropIt API
-  version: 0.1.0
-  description: Initial design contract; not yet backed by implementation.
+  version: 0.2.0
+  description: Slice 06 transfer routes are test-only. Unlock, download and refresh are not implemented; production activation requires Slice 07.
 servers:
   - url: https://api.example.invalid/v1
 paths:
   /transfers:
     post:
       operationId: createTransfer
+      description: Idempotency keys are globally scoped to anonymous creation; use a random key. Same or different payload replay returns generic 409 without credentials.
       parameters:
         - in: header
           name: Idempotency-Key
           required: true
-          schema: {type: string, minLength: 16, maxLength: 128}
+          schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$'}
       requestBody:
         required: true
         content:
@@ -21,17 +22,28 @@ paths:
             schema: {$ref: '#/components/schemas/CreateTransfer'}
       responses:
         '201':
-          description: Created with one-time management credential and upload capabilities
+          description: Created with one-time management/share credentials and upload capabilities. Any replay of a retained idempotency key returns 409; secrets cannot be recovered.
           content:
             application/json:
               schema: {$ref: '#/components/schemas/CreatedTransfer'}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
         '429': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /transfers/{id}/complete:
     post:
       operationId: completeTransfer
+      description: Body must be absent or an empty object. Extra file IDs or keys are rejected. Interrupted verification is retryable after its bounded lease.
       security: [{managementBearer: []}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
       parameters:
         - $ref: '#/components/parameters/TransferId'
       responses:
@@ -44,21 +56,41 @@ paths:
                 required: [status]
                 properties:
                   status: {type: string, enum: [VERIFYING, READY]}
-                  shareUrl: {type: string, format: uri}
+                additionalProperties: false
         '401': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /transfers/{id}:
     delete:
       operationId: cancelTransfer
+      description: Body must be absent or an empty object. Repeat cancellation retries exact-key cleanup.
       security: [{managementBearer: []}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
       parameters:
         - $ref: '#/components/parameters/TransferId'
       responses:
         '204': {description: Cancelled}
         '401': {$ref: '#/components/responses/Error'}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /public/transfers/{token}:
     get:
       operationId: getPublicTransfer
+      description: Only READY, unexpired shares are visible. Protected transfers return only passwordRequired=true in Slice 06.
       parameters:
         - $ref: '#/components/parameters/PublicToken'
       responses:
@@ -68,6 +100,13 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/PublicTransfer'}
         '404': {$ref: '#/components/responses/Error'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /public/transfers/{token}/unlock:
     post:
       operationId: unlockTransfer
@@ -168,52 +207,65 @@ components:
       additionalProperties: false
       required: [name, size, contentType]
       properties:
-        name: {type: string, minLength: 1, maxLength: 255}
-        size: {type: integer, minimum: 1, maximum: 104857600}
-        contentType: {type: string, maxLength: 255}
+        name: {type: string, minLength: 1, maxLength: 255, description: NFC-normalized display name; at most 255 UTF-8 bytes after normalization.}
+        size: {type: integer, minimum: 1, maximum: 100000000}
+        contentType: {type: string, minLength: 3, maxLength: 255, pattern: '^[a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+$'}
     CreateTransfer:
       type: object
       additionalProperties: false
-      required: [files, expiresInHours]
+      required: [files]
       properties:
         files:
           type: array
           minItems: 1
           maxItems: 10
           items: {$ref: '#/components/schemas/FileDescriptor'}
-          description: Sum of size values MUST be <=524288000 bytes.
+          description: Sum of size values MUST be <=500000000 bytes.
         expiresInHours: {type: integer, minimum: 1, maximum: 168, default: 24}
-        password: {type: string, nullable: true, minLength: 1, maxLength: 256}
+        password: {type: string, nullable: true, enum: [null], description: Non-null passwords are rejected with 400 until Slice 07.}
     CreatedTransfer:
       type: object
-      required: [transferId, managementToken, expiresAt, files]
+      additionalProperties: false
+      required: [transferId, managementToken, shareUrl, expiresAt, files]
       properties:
         transferId: {type: string, format: uuid}
         managementToken: {type: string, description: Returned once; store only in sender session}
+        shareUrl: {type: string, format: uri, description: Returned once at creation; unusable until READY.}
         expiresAt: {type: string, format: date-time}
         files:
           type: array
           items:
             type: object
-            required: [id, uploadUrl]
+            additionalProperties: false
+            required: [id, uploadUrl, uploadMethod, uploadHeaders, uploadExpiresAt]
             properties:
               id: {type: string, format: uuid}
               uploadUrl: {type: string, format: uri}
-              uploadMethod: {type: string, enum: [PUT, POST]}
-              uploadFields: {type: object, additionalProperties: {type: string}}
+              uploadMethod: {type: string, enum: [PUT]}
+              uploadHeaders: {type: object, additionalProperties: {type: string}}
+              uploadExpiresAt: {type: string, format: date-time}
     PublicTransfer:
-      type: object
-      required: [passwordRequired]
-      properties:
-        passwordRequired: {type: boolean}
-        expiresAt: {type: string, format: date-time}
-        files:
-          type: array
-          description: Omitted until password grant is verified when protected.
-          items:
-            type: object
-            required: [id, name, size]
-            properties:
-              id: {type: string, format: uuid}
-              name: {type: string}
-              size: {type: integer, format: int64}
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [passwordRequired]
+          properties:
+            passwordRequired: {type: boolean, enum: [true]}
+        - type: object
+          additionalProperties: false
+          required: [passwordRequired, expiresAt, files]
+          properties:
+            passwordRequired: {type: boolean, enum: [false]}
+            expiresAt: {type: string, format: date-time}
+            files:
+              type: array
+              minItems: 1
+              maxItems: 10
+              items:
+                type: object
+                additionalProperties: false
+                required: [id, name, size]
+                properties:
+                  id: {type: string, format: uuid}
+                  name: {type: string}
+                  size: {type: integer, minimum: 1, maximum: 100000000}

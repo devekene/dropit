@@ -28,3 +28,18 @@ published unpacked sizes are approximately 3.3 MB and 33 KB respectively; neithe
 is imported by `apps/web`. A hand-written SigV4 implementation was rejected
 because maintaining canonical request and signing behavior locally would create
 more security and maintenance risk than these provider-maintained packages.
+
+## Slice 06 contract-test dependencies
+
+- `ajv@8.20.0` (MIT): strict JSON Schema compilation and HTTP response validation
+  against the OpenAPI schemas. It was already a transitive framework dependency;
+  it is now explicitly declared for API tests.
+- `yaml@2.9.1` (ISC): parse the checked-in OpenAPI document in tests.
+
+Both are development-only direct dependencies and contribute no application
+runtime or browser bundle code. They increase test install size and require
+normal lockfile/audit maintenance. Maintained upstream schema/YAML implementations
+are preferable to a hand-written partial validator/parser. Tests parse only the
+trusted checked-in specification; untrusted API bodies do not enter YAML parsing.
+Measured installed package directories are approximately 2.3 MiB for AJV and
+1.25 MiB for YAML (`du -skL`, excluding separate transitive package directories).

@@ -2,6 +2,7 @@ export interface StorageObjectReference {
   transferId: string;
   fileId: string;
   storageKey: string;
+  signal?: AbortSignal;
 }
 
 export interface CreateUploadCapabilityInput extends StorageObjectReference {
